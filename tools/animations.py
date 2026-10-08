@@ -86,12 +86,13 @@ def think(t):
     p.add("chest", x=-1.5, y=4.0).add("neck", x=-3.0)
     p.add("head", x=-9.0 + 1.0 * s(t, 4.0), y=10.0, z=-7.0)
     tap = max(0.0, s(t, 1.0)) * (s(t, 4.0) > -0.3)
-    # right paw to chin, left paw across the tummy
-    p.add("upper_arm.R", x=-48.0, z=24.0, y=-10.0)
-    p.add("forearm.R", x=-78.0, z=8.0)
-    p.add("hand.R", x=-10.0 + 4.0 * tap, z=10.0)
-    p.add("upper_arm.L", x=-14.0, z=-6.0)
-    p.add("forearm.L", x=-38.0, z=-12.0)
+    # right paw under the chin (angles solved by a small IK fit, see docs/BUILD_LOG.md),
+    # left arm relaxed slightly forward
+    p.add("upper_arm.R", x=-71.4, y=11.8, z=1.1)
+    p.add("forearm.R", x=-35.2 + 3.0 * tap, y=21.3, z=42.1)
+    p.add("hand.R", x=-4.0 * tap)
+    p.add("upper_arm.L", x=-10.0, z=4.0)
+    p.add("forearm.L", x=-22.0)
     p.add("ear.L", x=-4.0, z=-3.0).add("ear.R", x=3.0)
     return p, {}
 
@@ -120,7 +121,7 @@ def happy(t):
     p.add("chest", z=-3.0 * s(t, 1.0, 0.4), x=-2.0)
     p.add("head", z=6.0 * s(t, 1.0, 0.8), x=-3.0)
     for sd, sg in (("L", 1), ("R", -1)):
-        p.add(f"upper_arm.{sd}", z=sg * (14.0 + 6.0 * hop), x=-10.0)
+        p.add(f"upper_arm.{sd}", z=sg * (7.0 + 4.0 * hop), x=-12.0)
         p.add(f"forearm.{sd}", x=-30.0, z=-sg * 10.0)
         p.add(f"ear.{sd}", z=-sg * 4.0 * s(t, 0.5, 0.6 * sg), x=4.0)
         p.add(f"thigh.{sd}", x=-4.0 * hop)
@@ -179,7 +180,7 @@ def surprised(t, L=1.6):
     p.add("chest", x=-7.0 * e).add("spine", x=-3.0 * e)
     p.add("head", x=-7.0 * e)
     for sd, sg in (("L", 1), ("R", -1)):
-        p.add(f"upper_arm.{sd}", z=sg * 26.0 * e, x=-14.0 * e)
+        p.add(f"upper_arm.{sd}", z=sg * 13.0 * e, x=-18.0 * e)
         p.add(f"forearm.{sd}", x=-32.0 * e, z=sg * 8.0 * e)
         p.add(f"hand.{sd}", z=sg * 12.0 * e)
         p.add(f"ear.{sd}", x=8.0 * e, z=sg * 4.0 * e).add(f"ear_tip.{sd}", x=4.0 * e)

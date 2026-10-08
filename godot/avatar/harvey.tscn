@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://avatar/avatar.gd" id="1"]
+[ext_resource type="PackedScene" path="res://avatar/harvey.glb" id="2"]
+
+[node name="Harvey" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Model" parent="." instance=ExtResource("2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.995, 0)

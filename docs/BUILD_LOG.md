@@ -5,14 +5,14 @@ from the scripts in `tools/` and the Godot project in `godot/`.
 
 ## Deliverables checklist
 - [x] D1 Repo scaffold, MIT license, this log
-- [ ] D2 Mesh cleanup + decimation to mobile budget
-- [ ] D3 Colorization (reference image projection + hidden-side rules) and face clean-plate
-- [ ] D4 Skeleton (Godot Skeleton3D-compatible) + automatic skin weights
-- [ ] D5 Procedural face shader (eyes/blink/gaze, brows, talking mouth, blush)
-- [ ] D6 Animation library
-- [ ] D7 `Avatar.gd` runtime API (states, emotes, lip-sync, look-at)
-- [ ] D8 Mobile config (Compatibility renderer, Android export preset) + verification renders
-- [ ] D9 Docs + final report
+- [x] D2 Mesh cleanup + decimation to mobile budget
+- [x] D3 Colorization (reference image projection + hidden-side rules) and face clean-plate
+- [x] D4 Skeleton (Godot Skeleton3D-compatible) + automatic skin weights
+- [x] D5 Procedural face shader (eyes/blink/gaze, brows, talking mouth, blush)
+- [x] D6 Animation library
+- [x] D7 `Avatar.gd` runtime API (states, emotes, lip-sync, look-at)
+- [x] D8 Mobile config (Compatibility renderer, Android export preset) + verification renders
+- [x] D9 Docs + final report
 
 ## Log
 
@@ -64,3 +64,34 @@ minimum-area (Liepa-style DP) triangulation using that part's rim vertices in lo
 Iterations: centroid fans → starburst artifacts; per-group open runs → zero-area slivers (window
 through torso in arms-up pose); final per-part cyclic polygons → closed. Residual: 36 open
 half-edges (tiny slits where 3 parts meet near the hip) — cosmetic, only visible in extreme poses.
+
+[D4] 21:40 — Revised separation: bridging faces are no longer deleted (that left see-through
+slits at rest) but re-owned by one part (priority torso > legs > head > tail > arms); the other
+part's rim vertices are duplicated. Caps get their own vertex copies with rim weights copied
+(no cracks) and plain vertex colour (no projected texture on caps).
+Bug found+fixed: cap islands made the harmonic colour solve singular → NaN → black smudges in
+renders. Caps are now pinned; asserts added for non-finite colours/weights.
+
+[D5] 21:30 — `harvey_face.gdshader`: analytic eyes (sclera, iris gradient, pupil dilation,
+2 highlights + emission, outline, upper-lid blink, happy-eye arcs, wink, wide), Bezier brows
+(raise / inner / asymmetry), mouth (smile curve, opening, "oo"/"ee" width, tongue), blush, rim.
+Feature mask in UV2 (front half of head) — first version used COLOR.a and dropped the upward-
+facing brow ridge (broken brows in renders) → fixed.
+
+[D6] 21:35 — 11 clips at 30 fps, every bone keyed: idle, listen, think, talk, happy, sad (loops);
+wave, nod, shake, surprised, celebrate (one-shots). Think pose paw-to-chin angles solved with
+Nelder-Mead IK (tip error < 2 mm, elbow constrained outside torso).
+
+[D7] 21:35 — `avatar.gd` (HarveyAvatar): states, emotes w/ auto-return, expression presets with
+smooth blending, natural blinks (incl. random double blinks), saccades, idle glances, camera
+attention while listening/talking, look-at via custom `SkeletonModifier3D`, lip-sync from audio
+(spectrum analyser on a dedicated bus), from text (syllable timeline), or external visemes.
+
+[D8] 21:50 — Godot project: GL Compatibility renderer, portrait 720×1280, ETC2/ASTC, Android
+arm64 preset. Verification: 17 screenshots rendered by Godot 4.3 itself (Xvfb + Mesa llvmpipe,
+same GLES3 path) → `previews/`. Scripts parse/compile with no errors. FPS shown in renders
+(15–19) is CPU software rendering in the container, NOT phone performance.
+Not verified: on-device FPS (no physical device available) and audio lip-sync with real audio
+(dummy audio driver in container; code path is standard AudioEffectSpectrumAnalyzer).
+
+[D9] 21:55 — README with API, run/export steps, licensing and known limitations.

@@ -288,16 +288,42 @@ def cut_webs(V, F, N, lab, B):
             legit[i] = np.linalg.norm(V[F[i]].mean(0) - np.array([0.04, -0.6, -0.04])) < 0.16
     cut = bridge & ~legit
     nv0 = len(V)
-    keep = ~cut
-    F2 = F[keep]
-    log(f"cut {cut.sum()} bridging faces between touching parts")
+    # Bridging faces are kept but handed to ONE owner part; their vertices from the other part are
+    # duplicated (same position) and re-labelled to the owner. Rest pose stays seamless; when the
+    # other part moves away it leaves a hole on its own side only, which is capped below.
+    PRIORITY = ["torso", "leg.L", "leg.R", "head", "tail", "arm.L", "arm.R"]
+    dup = {}
+    Vx, Nx, labx = [], [], []
+    Fc = F[cut].copy()
+    for fi in range(len(Fc)):
+        f = Fc[fi]
+        g3 = grp[f]
+        owner = min(g3, key=lambda g: PRIORITY.index(g))
+        own_lab = lab[f[g3 == owner][0]]
+        for c in range(3):
+            v = f[c]
+            if g3[c] != owner:
+                k = (v, owner)
+                if k not in dup:
+                    dup[k] = nv0 + len(Vx)
+                    Vx.append(V[v]); Nx.append(N[v]); labx.append(own_lab)
+                Fc[fi, c] = dup[k]
+    if Vx:
+        V = np.concatenate([V, np.array(Vx)]); N = np.concatenate([N, np.array(Nx)])
+        lab = np.concatenate([lab, np.array(labx)])
+        grp = np.array([GROUP(n) for n in names])[lab]
+    F2 = np.concatenate([F[~cut], Fc])
+    log(f"re-owned {cut.sum()} bridging faces, duplicated {len(Vx)} rim vertices")
     # Cap every opened hole: walk each rim loop, and for every body part on that rim fill the polygon
     # made of that part's rim vertices (in loop order) with a minimum-area triangulation.
     he = np.concatenate([F2[:, [0, 1]], F2[:, [1, 2]], F2[:, [2, 0]]])
     key = he[:, 0] * len(V) + he[:, 1]
     rkey = he[:, 1] * len(V) + he[:, 0]
     bnd = he[~np.isin(key, rkey)]
-    Vn, Nn, labn, Fn = [V], [N], [lab], [F2]
+    # Caps get their own vertex copies (src[] remembers the rim vertex) so they can take plain vertex
+    # colour instead of the projected texture; weights are copied from the rim later, so no cracks.
+    Vn, Nn, labn, Fn, srcn = [V], [N], [lab], [F2], [np.arange(len(V))]
+    nv = len(V)
     ncaps = 0
     for loop in order_chains(bnd):
         loop = np.array(loop)
@@ -306,15 +332,22 @@ def cut_webs(V, F, N, lab, B):
             if len(poly) < 3:
                 continue
             t = np.array(min_area_fill(V, poly))[:, ::-1]  # reverse: cap edges oppose the rim half-edges
-            Fn.append(t); ncaps += 1
+            remap = {v: nv + i for i, v in enumerate(poly)}
+            fn = np.cross(V[t[:, 1]] - V[t[:, 0]], V[t[:, 2]] - V[t[:, 0]]).sum(0)
+            fn /= np.linalg.norm(fn) + 1e-12
+            Vn.append(V[poly]); Nn.append(np.tile(fn, (len(poly), 1))); labn.append(lab[poly]); srcn.append(poly)
+            nv += len(poly)
+            Fn.append(np.vectorize(remap.get)(t)); ncaps += 1
     V = np.concatenate(Vn); N = np.concatenate(Nn); lab = np.concatenate(labn); F = np.concatenate(Fn)
+    src = np.concatenate(srcn)
     loops = range(ncaps)
     used = np.zeros(len(V), bool); used[F.ravel()] = True
     remap = np.cumsum(used) - 1
     nv0 = int(used[:nv0].sum())
-    V, N, lab, F = V[used], N[used], lab[used], remap[F]
+    src = remap[src]
+    V, N, lab, F, src = V[used], N[used], lab[used], remap[F], src[used]
     log(f"capped {len(loops)} boundary loops -> {len(V)} verts, {len(F)} tris")
-    return V, F, N, lab
+    return V, F, N, lab, src
 
 
 def order_chains(E):
@@ -392,12 +425,13 @@ def compute_weights(V, F, B, lab):
     w4 = np.take_along_axis(Wt, order, 1)
     w4[w4 < 0.02] = 0
     w4 /= w4.sum(1, keepdims=True)
+    assert np.isfinite(w4).all(), "skin weights contain non-finite values"
     return order.astype(np.uint16), w4.astype(np.float32), E
 
 
 # ----------------------------------------------------------------------------------------------
 # 4. colours
-def compute_colors(V, F, N, tex, lab, names, E, B):
+def compute_colors(V, F, N, tex, lab, names, E, B, cap):
     H, W, _ = tex.shape
     px = ALIGN_SC * V[:, 0] + ALIGN_TX
     py = -ALIGN_SC * V[:, 1] + ALIGN_TY
@@ -464,6 +498,7 @@ def compute_colors(V, F, N, tex, lab, names, E, B):
     tgt[is_tail] = tcol[is_tail]; fixed |= is_tail
     m = is_tail & (z > -0.16) & (y > -0.62)  # jacket hem overlaps the tail root
     tgt[m] = jacket
+    fixed |= cap  # cap copies are isolated islands; their colour is copied from the rim afterwards
     # harmonic fill for every remaining hidden vertex (soles, underside of chin, limb backs...)
     free = ~fixed
     n = len(V)
@@ -480,9 +515,14 @@ def compute_colors(V, F, N, tex, lab, names, E, B):
     for _ in range(4):
         sm = An @ tgt
         tgt = np.where((w > 0.95)[:, None], tgt, 0.5 * tgt + 0.5 * sm)
+    assert np.isfinite(tgt).all(), "colour solve produced non-finite values"
     rgba = np.concatenate([srgb_to_linear(np.clip(tgt, 0, 1)), w[:, None]], 1).astype(np.float32)
+    # face mask for the procedural features: front half of the head only (never the back of the head,
+    # which shares the same projected UVs)
+    fm = (is_head & (z > 0.12) & (N[:, 2] > -0.2)).astype(np.float32)
+    uv2 = np.stack([fm, np.zeros_like(fm)], 1).astype(np.float32)
     log(f"front-textured verts {int((w > 0.5).sum())}/{n}, rule-coloured {int((fixed & hidden).sum())}, diffused {len(fi)}")
-    return uv.astype(np.float32), rgba
+    return uv.astype(np.float32), rgba, uv2
 
 
 # ----------------------------------------------------------------------------------------------
@@ -510,12 +550,13 @@ class GLB:
         return len(self.acc) - 1
 
 
-def write_glb(path, V, F, N, uv, rgba, joints, weights, B, anims):
+def write_glb(path, V, F, N, uv, rgba, uv2, joints, weights, B, anims):
     g = GLB()
     FLOAT, U16, U32 = 5126, 5123, 5125
     pos = g.add(V.astype(np.float32), FLOAT, "VEC3", 34962, minmax=True)
     nor = g.add(N.astype(np.float32), FLOAT, "VEC3", 34962)
     tc = g.add(uv, FLOAT, "VEC2", 34962)
+    tc2 = g.add(uv2, FLOAT, "VEC2", 34962)
     col = g.add(rgba, FLOAT, "VEC4", 34962)
     jnt = g.add(joints.astype(np.uint16), U16, "VEC4", 34962)
     wgt = g.add(weights, FLOAT, "VEC4", 34962)
@@ -559,7 +600,7 @@ def write_glb(path, V, F, N, uv, rgba, joints, weights, B, anims):
         "scene": 0, "scenes": [{"nodes": [0]}],
         "nodes": nodes,
         "meshes": [{"name": "Body", "primitives": [{
-            "attributes": {"POSITION": pos, "NORMAL": nor, "TEXCOORD_0": tc, "COLOR_0": col,
+            "attributes": {"POSITION": pos, "NORMAL": nor, "TEXCOORD_0": tc, "TEXCOORD_1": tc2, "COLOR_0": col,
                            "JOINTS_0": jnt, "WEIGHTS_0": wgt},
             "indices": idx, "material": 0, "mode": 4}]}],
         "materials": [{"name": "HarveyBody", "pbrMetallicRoughness": {"baseColorFactor": [1, 1, 1, 1],
@@ -587,11 +628,16 @@ def main():
     B = build_skeleton(V)
     names = [b[0] for b in B]
     lab = compute_labels(V, F, B)
-    V, F, N, lab = cut_webs(V, F, N, lab, B)
+    V, F, N, lab, src = cut_webs(V, F, N, lab, B)
     joints, weights, E = compute_weights(V, F, B, lab)
-    uv, rgba = compute_colors(V, F, N, tex, lab, names, E, B)
+    cap = src != np.arange(len(V))
+    joints[cap], weights[cap] = joints[src[cap]], weights[src[cap]]
+    uv, rgba, uv2 = compute_colors(V, F, N, tex, lab, names, E, B, cap)
+    rgba[cap, :3] = rgba[src[cap], :3]
+    rgba[cap, 3] = 0.0
+    uv2[cap] = 0.0
     anims = animations.bake_all(names)
-    write_glb(os.path.join(OUT_DIR, "harvey.glb"), V, F, N, uv, rgba, joints, weights, B, anims)
+    write_glb(os.path.join(OUT_DIR, "harvey.glb"), V, F, N, uv, rgba, uv2, joints, weights, B, anims)
     np.savez_compressed(os.path.join(ROOT, "tools", ".cache_build.npz"), V=V, F=F, N=N, uv=uv, rgba=rgba,
                         joints=joints, weights=weights, lab=lab)
     json.dump({"bones": [[b[0], b[1], b[2].tolist(), b[3].tolist()] for b in B]},

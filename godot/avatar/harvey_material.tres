@@ -1,0 +1,28 @@
+[gd_resource type="ShaderMaterial" load_steps=3 format=3]
+
+[ext_resource type="Shader" path="res://avatar/harvey_face.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://avatar/harvey_albedo.png" id="2"]
+
+[resource]
+render_priority = 0
+shader = ExtResource("1")
+shader_parameter/albedo_tex = ExtResource("2")
+shader_parameter/tex_size = Vector2(512, 768)
+shader_parameter/blink = 0.0
+shader_parameter/wink_l = 0.0
+shader_parameter/wink_r = 0.0
+shader_parameter/happy_eyes = 0.0
+shader_parameter/eye_wide = 0.0
+shader_parameter/look = Vector2(0, 0)
+shader_parameter/pupil_size = 1.0
+shader_parameter/brow_raise = 0.0
+shader_parameter/brow_inner = 0.0
+shader_parameter/brow_asym = 0.0
+shader_parameter/mouth_open = 0.0
+shader_parameter/mouth_wide = 0.0
+shader_parameter/smile = 0.35
+shader_parameter/blush = 0.0
+shader_parameter/rim_color = Color(1, 0.86, 0.72, 1)
+shader_parameter/rim_strength = 0.22
+shader_parameter/brightness = 1.0
+shader_parameter/self_illum = 0.22
