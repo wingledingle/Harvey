@@ -3,3 +3,4 @@ __pycache__/
 .godot/
 *.import.tmp
 /export/
+tools/.cache_*

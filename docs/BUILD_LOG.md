@@ -34,3 +34,33 @@ the tail is slightly larger in the mesh than in the image (tail will use rule-ba
 
 [D1] 20:40 — Verified Godot 4.3 renders headlessly under Xvfb/llvmpipe with the
 `gl_compatibility` renderer (same renderer used on device) → screenshot-based verification possible.
+
+[D2] 20:50 — Decimation with fast-simplification (quadric, MIT) 303,464 → 30,000 tris. After part
+separation: 14,990 verts / 29,961 tris. Budget rationale: Moto G Play (Adreno 610/619 or PowerVR
+GE8320 depending on year) handles a single 30k-tri GPU-skinned mesh in one draw call comfortably.
+
+[D3] 20:55 — Texture = reference image, background replaced by nearest-character colour
+(distance-transform fill), mask clipped to the mesh's own projected silhouette (drops floor shadow).
+Eyes, brows and mouth painted out via harmonic (Laplace) inpainting → `harvey_albedo.png`
+("clean plate"; procedural features are drawn by the shader). UV = front projection with the fitted
+transform. Front visibility from a 2× z-buffer + normal ramp → per-vertex blend weight in COLOR.a.
+Hidden surfaces: rule colours (back of head/ears orange, jacket back, sleeves/paws, trousers/shoes,
+tail orange→cream tip) + harmonic diffusion on the mesh graph for everything else.
+Bug found+fixed: first mask cut at a fixed row removed the shoes (would be painted orange).
+
+[D4] 21:05 — Skeleton: 26 bones (root, hips, spine, chest, neck, head, ear/ear_tip ×2,
+upper_arm/forearm/hand ×2, thigh/shin/foot ×2, tail.1–4; tail centreline auto-fitted from slices).
+All rest rotations identity (world-aligned) → animation Euler angles are world-axis intuitive.
+Labels: nearest bone segment minus 0.5×bone radius, with anatomical gating, largest-island cleanup.
+Weights: label diffusion (24 iters) restricted to edges between related (parent/child) bones; top-4.
+Bug found+fixed: plain nearest-segment let tail bones claim the lower back (fat torso) → radius-aware
+distance + stricter tail gate.
+
+[D4] 21:15 — MAJOR ISSUE: scan fuses arms to the jacket along their full length (and paw↔hip,
+thigh↔thigh, tail↔leg). Raising an arm dragged a sheet of torso with it (see preview renders).
+Fix: `cut_webs` deletes the 402 faces bridging unrelated parts (keeps shoulder cap above the
+armpit, neck, hips, tail root), then each opened rim loop is closed per body part with a
+minimum-area (Liepa-style DP) triangulation using that part's rim vertices in loop order.
+Iterations: centroid fans → starburst artifacts; per-group open runs → zero-area slivers (window
+through torso in arms-up pose); final per-part cyclic polygons → closed. Residual: 36 open
+half-edges (tiny slits where 3 parts meet near the hip) — cosmetic, only visible in extreme poses.
