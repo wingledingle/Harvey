@@ -95,3 +95,8 @@ Not verified: on-device FPS (no physical device available) and audio lip-sync wi
 (dummy audio driver in container; code path is standard AudioEffectSpectrumAnalyzer).
 
 [D9] 21:55 — README with API, run/export steps, licensing and known limitations.
+
+[V1] 2026-10-10 14:00 — Demo video `media/harvey_demo.mp4` (40 s, 540×960, H.264) recorded with
+Godot's built-in Movie Maker (`--write-movie --fixed-fps 30`) driving `godot/tools/demo_reel.gd`
+through every state/emote + close-ups. Fixed-fps capture = true animation timing (not the
+container's software-rendering speed). No audio track (lip-sync shown is text-driven).
