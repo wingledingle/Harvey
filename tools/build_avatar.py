@@ -217,7 +217,8 @@ def compute_labels(V, F, B):
         elif name.startswith("ear"):
             g = (y > 0.44) & (x * side > 0.11)
         elif name.startswith(("upper_arm", "forearm", "hand")):
-            g = (x * side > 0.245) & (y < -0.0) & (y > -0.70) & (z > -0.06)
+            reach = {"upper_arm": 0.12, "forearm": 0.125, "hand": 0.11}[name.split(".")[0]]  # raw reach = value + 0.04
+            g = (x * side > 0.245) & (y < -0.0) & (y > -0.70) & (z > -0.06) & (d < reach)
         elif name.startswith(("thigh", "shin", "foot")):
             g = (y < -0.58) & (x * side > -0.02) & (z > -0.13)
         elif name.startswith("tail"):
@@ -335,7 +336,8 @@ def cut_webs(V, F, N, lab, B):
             remap = {v: nv + i for i, v in enumerate(poly)}
             fn = np.cross(V[t[:, 1]] - V[t[:, 0]], V[t[:, 2]] - V[t[:, 0]]).sum(0)
             fn /= np.linalg.norm(fn) + 1e-12
-            Vn.append(V[poly]); Nn.append(np.tile(fn, (len(poly), 1))); labn.append(lab[poly]); srcn.append(poly)
+            Vn.append(V[poly] - fn * 0.006); Nn.append(np.tile(fn, (len(poly), 1)));  # inset: hidden at rest
+            labn.append(lab[poly]); srcn.append(poly)
             nv += len(poly)
             Fn.append(np.vectorize(remap.get)(t)); ncaps += 1
     V = np.concatenate(Vn); N = np.concatenate(Nn); lab = np.concatenate(labn); F = np.concatenate(Fn)
@@ -447,6 +449,15 @@ def compute_colors(V, F, N, tex, lab, names, E, B, cap):
     part = np.array([names[l] for l in lab])
     is_tail = np.char.startswith(part, "tail")
     w[is_tail] = 0
+    x, y, z = V.T
+    ss = lambda a, b, v: np.clip((v - a) / (b - a), 0, 1) ** 2 * (3 - 2 * np.clip((v - a) / (b - a), 0, 1))
+    # The scan's snout is long, but the picture shows a short front-on nose: projecting the picture
+    # smears it along the snout. Snout, forearms and paws are coloured from geometry instead.
+    is_headpart = np.isin(part, ["head", "neck"])
+    snout_w = is_headpart * (np.abs(x) < 0.24) * (y > 0.03) * (y < 0.45) * ss(0.44, 0.56, z)
+    is_paw = np.array([p.startswith(("hand", "forearm")) for p in part])
+    w = w * (1 - snout_w)
+    w[is_paw] = 0
     # erode front weight one ring so the texture never stretches over silhouettes
     for _ in range(2):
         mn = w.copy()
@@ -466,7 +477,20 @@ def compute_colors(V, F, N, tex, lab, names, E, B, cap):
     fixed = w > 0.6
     hidden = ~fixed
     tgt = col.copy()
-    x, y, z = V.T
+    nose_col = np.array([0.13, 0.11, 0.13])
+    # snout: cream muzzle, orange bridge on top near the eyes, black nose leather at the tip
+    bridge = ss(0.35, 0.7, N[:, 1]) * (1 - ss(0.58, 0.66, z)) * (1 - ss(0.06, 0.12, np.abs(x)))
+    sn = cream * (1 - bridge[:, None]) + orange * bridge[:, None]
+    nose = ss(0.735, 0.755, z) * ss(0.17, 0.21, y)
+    sn = sn * (1 - nose[:, None]) + nose_col * nose[:, None]
+    m = snout_w > 0.01
+    tgt[m] = tgt[m] * (1 - snout_w[m, None]) + sn[m] * snout_w[m, None]
+    fixed |= snout_w > 0.5
+    # paws: jacket sleeve -> orange wrist band -> cream mitten paw, soft transitions
+    a = ss(-0.43, -0.40, y)[:, None]    # 1 above the cuff
+    b = ss(-0.475, -0.455, y)[:, None]  # 1 above the paw
+    pawc = jacket * a + (1 - a) * (orange * b + cream * (1 - b))
+    tgt[is_paw] = pawc[is_paw]; fixed |= is_paw
     is_head = np.isin(part, ["head", "neck"])
     is_ear = np.char.startswith(part, "ear")
     is_torso = np.isin(part, ["hips", "spine", "chest"])
@@ -496,8 +520,6 @@ def compute_colors(V, F, N, tex, lab, names, E, B, cap):
     tm = np.clip(tipmix + under * (t_par > 0.25), 0, 1)
     tcol = orange * (1 - tm[:, None]) + cream * tm[:, None]
     tgt[is_tail] = tcol[is_tail]; fixed |= is_tail
-    m = is_tail & (z > -0.16) & (y > -0.62)  # jacket hem overlaps the tail root
-    tgt[m] = jacket
     fixed |= cap  # cap copies are isolated islands; their colour is copied from the rim afterwards
     # harmonic fill for every remaining hidden vertex (soles, underside of chin, limb backs...)
     free = ~fixed

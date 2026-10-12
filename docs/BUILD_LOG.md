@@ -100,3 +100,22 @@ Not verified: on-device FPS (no physical device available) and audio lip-sync wi
 Godot's built-in Movie Maker (`--write-movie --fixed-fps 30`) driving `godot/tools/demo_reel.gd`
 through every state/emote + close-ups. Fixed-fps capture = true animation timing (not the
 container's software-rendering speed). No audio track (lip-sync shown is text-driven).
+
+[R2] 2026-10-12 — User review: "hands look bad, nose weird, doesn't move right". Revision 2:
+Tool research (licenses verified from primary LICENSE files, not summaries):
+- Godot 4.7.2-stable (latest stable tag via git ls-remote; MIT): adds SpringBoneSimulator3D (4.5),
+  LookAtModifier3D (4.4), IK (4.6). Project upgraded 4.3 → 4.7.2. API taken from the 4.7 class docs.
+- Rhubarb Lip Sync: MIT, permissive deps, CPU — candidate for audio lip-sync (not integrated yet).
+- UniRig (MIT) needs CUDA ≥8 GB; TRELLIS.2 (MIT) needs ≥16 GB GPU; container has no GPU → not usable here.
+  TripoSR (MIT) runs on CPU but would likely be lower quality than the current mesh.
+Fixes:
+- Nose: scan snout is long while the picture shows a short front-on nose; projection smeared black and
+  orange along it. Snout now geometry-coloured: black nose leather at the tip, cream muzzle, orange bridge.
+- Hands: paws/forearms geometry-coloured (sleeve → orange wrist → cream mitten paw); arm bones get a max
+  reach (sleeve ~0.15 thick) so hip/torso surface is no longer captured by hands (was dragged along).
+  Caps inset 6 mm so they stay hidden at rest. Residual: coarse jagged seam where the paw rests on the thigh.
+- Motion: animations rewritten (6 s loops; weight shift with hip/chest counter-rotation, arm drag,
+  knee give, irregular beat gestures for talk, anticipation/overshoot on emotes; seamless-loop assert).
+  Ears + tail driven by SpringBoneSimulator3D for follow-through. Head-look modifier moved to
+  `_process_modification_with_delta` (old method deprecated per 4.7 docs).
+- Video re-recorded with 4.7.2 Movie Maker: media/harvey_demo.mp4 (44 s, 720×1280).

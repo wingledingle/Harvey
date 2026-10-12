@@ -28,7 +28,7 @@ func _cache() -> void:
 		_neck = sk.find_bone("neck")
 
 
-func _process_modification() -> void:
+func _process_modification_with_delta(delta: float) -> void:
 	var sk := get_skeleton()
 	if sk == null:
 		return
@@ -45,8 +45,7 @@ func _process_modification() -> void:
 		want_yaw = clamp(atan2(d.x, d.z), deg_to_rad(-max_yaw_deg), deg_to_rad(max_yaw_deg)) * amount
 		want_pitch = clamp(-asin(clamp(d.y, -1.0, 1.0)), deg_to_rad(-max_pitch_up_deg), deg_to_rad(max_pitch_down_deg)) * amount
 	# critically damped-ish smoothing, frame-rate independent
-	var dt := get_process_delta_time() if is_inside_tree() else 0.016
-	var k := 1.0 - exp(-dt * 7.0)
+	var k := 1.0 - exp(-delta * 7.0)
 	_yaw = lerp(_yaw, want_yaw, k)
 	_pitch = lerp(_pitch, want_pitch, k)
 	if abs(_yaw) < 1e-4 and abs(_pitch) < 1e-4:

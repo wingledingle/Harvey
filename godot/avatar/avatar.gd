@@ -99,6 +99,7 @@ func _ready() -> void:
 	_look = HarveyHeadLook.new()
 	_look.name = "HeadLook"
 	_skel.add_child(_look)
+	_setup_springs()
 	_setup_voice()
 	for k in EXPRESSIONS["neutral"]:
 		_face[k] = EXPRESSIONS["neutral"][k]
@@ -230,6 +231,34 @@ func _refresh_face_target() -> void:
 	if _expr_override != "":
 		name = _expr_override
 	_face_target = EXPRESSIONS[name].duplicate()
+
+
+func _setup_springs() -> void:
+	## Secondary motion: ears and tail lag, overshoot and settle on top of the animation
+	## (Godot's built-in SpringBoneSimulator3D, 4.5+). Runs after the head-look modifier.
+	var sim := SpringBoneSimulator3D.new()
+	sim.name = "Springs"
+	_skel.add_child(sim)
+	var chains := [
+		# root, end, stiffness, drag
+		["ear.L", "ear_tip.L", 3.2, 0.45],
+		["ear.R", "ear_tip.R", 3.2, 0.45],
+		["tail.1", "tail.4", 1.6, 0.35],
+	]
+	sim.setting_count = chains.size()
+	for i in chains.size():
+		var c: Array = chains[i]
+		sim.set_root_bone_name(i, c[0])
+		sim.set_end_bone_name(i, c[1])
+		sim.set_extend_end_bone(i, true)
+		sim.set_end_bone_direction(i, SkeletonModifier3D.BONE_DIRECTION_FROM_PARENT)
+		sim.set_end_bone_length(i, 0.25)
+		sim.set_stiffness(i, c[2])
+		sim.set_drag(i, c[3])
+		sim.set_gravity(i, 0.0)
+		sim.set_radius(i, 0.02)
+		sim.set_center_from(i, SpringBoneSimulator3D.CENTER_FROM_NODE)
+		sim.set_center_node(i, sim.get_path_to(self))
 
 
 func _setup_voice() -> void:

@@ -1,4 +1,4 @@
-# Harvey — animated AI-assistant avatar (Godot 4.3, MIT)
+# Harvey — animated AI-assistant avatar (Godot 4.7, MIT)
 
 A rigged, animated, expressive 3D fox avatar built from `source/fox_raw.glb` (image-to-3D scan) and
 `source/fox_reference.jpg`, designed to run on low-end Android phones (target: Moto G Play).
@@ -12,7 +12,7 @@ A rigged, animated, expressive 3D fox avatar built from `source/fox_raw.glb` (im
 | Clean-plate texture (face features removed, drawn by shader) | `godot/avatar/harvey_albedo.png` |
 | Face/body shader (eyes, blink, gaze, brows, talking mouth, blush) | `godot/avatar/harvey_face.gdshader` |
 | Drop-in avatar scene + API | `godot/avatar/harvey.tscn`, `godot/avatar/avatar.gd` |
-| Procedural head look-at (`SkeletonModifier3D`) | `godot/avatar/head_look_modifier.gd` |
+| Procedural head look-at (`SkeletonModifier3D`) + spring-bone ears/tail (`SpringBoneSimulator3D`) | `godot/avatar/head_look_modifier.gd`, `avatar.gd` |
 | Demo / test bench (touch UI) | `godot/demo/demo.tscn` |
 | Android export preset (arm64, GLES3 Compatibility) | `godot/export_presets.cfg` |
 | Reproducible build pipeline | `tools/build_avatar.py`, `tools/animations.py` |
@@ -36,8 +36,8 @@ harvey.external_lipsync = true; harvey.set_lipsync(open, wide)   # drive visemes
 Signals: `state_changed`, `emote_started`, `emote_finished`, `speech_started`, `speech_finished`.
 
 ## Run / export
-1. Install **Godot 4.3** (MIT) and open `godot/project.godot`. Press Play → demo with buttons.
-2. Android: Editor → Manage Export Templates → install 4.3 templates; set Android SDK + JDK 17 and a
+1. Install **Godot 4.7.2** (MIT) and open `godot/project.godot`. Press Play → demo with buttons.
+2. Android: Editor → Manage Export Templates → install 4.7.2 templates; set Android SDK + JDK 17 and a
    debug keystore in Editor Settings; Project → Export → "Android (Moto G Play)" → set your package
    name → Export APK. Renderer is GL Compatibility (GLES3), arm64 only, ETC2/ASTC textures.
 

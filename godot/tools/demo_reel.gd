@@ -4,17 +4,17 @@ extends SceneTree
 
 const STEPS := [
 	# [caption, kind, arg, seconds, framing]
-	["Idle", "state", "idle", 3.5, "full"],
-	["Wave", "emote", "wave", 2.8, "full"],
+	["Idle", "state", "idle", 5.0, "full"],
+	["Wave", "emote", "wave", 3.2, "full"],
 	["Listening", "state", "listening", 3.0, "full"],
-	["Thinking", "state", "thinking", 3.5, "full"],
-	["Talking (lip-sync)", "speak", "Hi there! I'm Harvey, your assistant. How can I help you today?", 4.5, "full"],
+	["Thinking", "state", "thinking", 4.5, "full"],
+	["Talking (lip-sync)", "speak", "Hi there! I'm Harvey, your assistant. How can I help you today?", 5.5, "full"],
 	["Happy", "state", "happy", 3.0, "full"],
 	["Nod", "emote", "nod", 1.6, "full"],
 	["Shake", "emote", "shake", 1.8, "full"],
-	["Surprised", "emote", "surprised", 2.0, "full"],
+	["Surprised", "emote", "surprised", 2.2, "full"],
 	["Sad", "state", "sad", 3.0, "full"],
-	["Celebrate", "emote", "celebrate", 2.6, "full"],
+	["Celebrate", "emote", "celebrate", 2.8, "full"],
 	["Close-up: talking", "speak", "Sure! I can set a reminder for you. Anything else?", 3.8, "portrait"],
 	["Close-up: joy", "expr", "joy", 2.0, "portrait"],
 	["Close-up: thinking", "state", "thinking", 2.5, "portrait"],
